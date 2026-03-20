@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Historiske Timer — CRM</title>
+<style>
+  :root {
+    --bg: #faf8f5; --surface: #ffffff; --surface2: #f3f0eb;
+    --border: #e8e3da; --border2: #d4cfc4;
+    --text: #1a1714; --text2: #6b6560; --text3: #a09b94;
+    --accent: #8B4513; --accent2: #c4722a; --accent-bg: #fdf0e6;
+    --green: #2d6a4f; --green-bg: #eaf4ed;
+    --blue: #1e4d8c; --blue-bg: #e8f0fb;
+    --yellow-bg: #fef9e7; --yellow: #7d6008;
+    --radius: 10px; --radius-sm: 6px;
+    --font: 'Georgia', serif;
+    --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font-ui); background: var(--bg); color: var(--text); min-height: 100vh; font-size: 14px; line-height: 1.5; }
+  .app { display: flex; height: 100vh; overflow: hidden; }
+
+  /* SETUP SCREEN */
+  .setup-screen { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 100vh; padding: 20px; }
+  .setup-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 40px; max-width: 500px; width: 100%; box-shadow: 0 4px 24px rgba(0,0,0,0.09); }
+  .setup-logo { font-family: var(--font); font-size: 22px; color: var(--accent); font-weight: bold; margin-bottom: 4px; }
+  .setup-sub { font-size: 12px; color: var(--text3); margin-bottom: 24px; }
+  .setup-step { display: flex; gap: 12px; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+  .setup-step:last-of-type { border-bottom: none; }
+  .step-num { width: 24px; height: 24px; border-radius: 50%; background: var(--accent); color: white; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
+  .step-body { flex: 1; }
+  .step-title { font-size: 13px; font-weight: 600; margin-bottom: 4px; color: var(--text); }
+  .step-desc { font-size: 12px; color: var(--text2); line-height: 1.6; margin-bottom: 8px; }
+  .step-input { width: 100%; padding: 8px 10px; border: 1px solid var(--border2); border-radius: var(--radius-sm); font-size: 13px; font-family: var(--font-ui); background: var(--surface); color: var(--text); }
+  .step-input:focus { outline: none; border-color: var(--accent2); }
+  .setup-btn { width: 100%; padding: 11px; background: var(--accent); color: white; border: none; border-radius: var(--radius-sm); font-size: 14px; font-weight: 500; cursor: pointer; font-family: var(--font-ui); margin-top: 8px; transition: background 0.15s; }
+  .setup-btn:hover { background: var(--accent2); }
+  .setup-error { font-size: 12px; color: #9b2c2c; margin-top: 8px; display: none; }
+  .setup-link { color: var(--blue); text-decoration: none; font-size: 12px; }
+  .setup-link:hover { text-decoration: underline; }
+
+  /* SIDEBAR */
+  .sidebar { width: 220px; min-width: 220px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+  .logo { padding: 20px 16px 16px; border-bottom: 1px solid var(--border); }
+  .logo-title { font-family: var(--font); font-size: 15px; font-weight: bold; color: var(--accent); }
+  .logo-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+  .logo-user { font-size: 11px; color: var(--accent2); margin-top: 4px; font-weight: 500; }
+  .nav { padding: 12px 8px; flex: 1; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--radius-sm); cursor: pointer; color: var(--text2); font-size: 13px; transition: all 0.15s; margin-bottom: 2px; }
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item.active { background: var(--accent-bg); color: var(--accent); font-weight: 500; }
+  .sidebar-stats { padding: 12px 16px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text3); }
+  .stat-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+  .stat-val { font-weight: 600; color: var(--text2); }
+  .reset-btn { display: block; width: calc(100% - 32px); margin: 0 16px 12px; padding: 6px; font-size: 11px; color: var(--text3); background: none; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; font-family: var(--font-ui); }
+  .reset-btn:hover { color: var(--text); background: var(--surface2); }
+
+  /* MAIN */
+  .main { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+  .topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 10; }
+  .topbar h1 { font-size: 17px; font-weight: 600; flex: 1; font-family: var(--font); }
+  .content { padding: 20px; flex: 1; }
+
+  .btn { padding: 7px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border2); background: var(--surface); color: var(--text); font-size: 13px; cursor: pointer; transition: all 0.15s; font-family: var(--font-ui); }
+  .btn:hover { background: var(--surface2); }
+  .btn-primary { background: var(--accent); color: white; border-color: var(--accent); }
+  .btn-primary:hover { background: var(--accent2); border-color: var(--accent2); }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+  .btn-google { background: var(--blue-bg); color: var(--blue); border-color: #b8d0f0; }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); }
+
+  .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+  .summary-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow); }
+  .summary-label { font-size: 11px; color: var(--text3); font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
+  .summary-value { font-size: 24px; font-weight: 600; font-family: var(--font); line-height: 1; }
+  .summary-sub { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 8px 12px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text3); border-bottom: 1px solid var(--border); white-space: nowrap; }
+  td { padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--surface2); }
+
+  .status-badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 20px; font-weight: 500; }
+  .s-new { background: var(--blue-bg); color: var(--blue); }
+  .s-contacted { background: var(--yellow-bg); color: var(--yellow); }
+  .s-meeting { background: var(--accent-bg); color: var(--accent); }
+  .s-booked { background: var(--green-bg); color: var(--green); }
+  .s-lost { background: var(--surface2); color: var(--text3); }
+  .lead-type { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 20px; font-weight: 500; }
+  .type-plejehjem { background: var(--blue-bg); color: var(--blue); }
+  .type-kirke { background: var(--green-bg); color: var(--green); }
+  .type-forening { background: var(--accent-bg); color: var(--accent); }
+
+  .pipeline { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .pipeline-header { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text3); padding: 0 0 8px; display: flex; align-items: center; gap: 6px; }
+  .pipeline-count { background: var(--surface2); color: var(--text2); border-radius: 20px; padding: 1px 7px; font-size: 11px; font-weight: 600; }
+  .lead-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 6px; cursor: pointer; transition: all 0.15s; }
+  .lead-card:hover { border-color: var(--border2); box-shadow: var(--shadow); transform: translateY(-1px); }
+
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 100; align-items: center; justify-content: center; padding: 20px; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--surface); border-radius: var(--radius); width: 100%; max-width: 660px; max-height: 90vh; overflow-y: auto; box-shadow: 0 8px 40px rgba(0,0,0,0.18); }
+  .modal-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .modal-title { font-size: 16px; font-weight: 600; font-family: var(--font); }
+  .modal-body { padding: 20px; }
+  .modal-footer { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; }
+  .close-btn { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text3); }
+
+  .form-row { margin-bottom: 14px; }
+  .form-row label { display: block; font-size: 12px; font-weight: 500; color: var(--text2); margin-bottom: 5px; }
+  .form-row input, .form-row select, .form-row textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--border2); border-radius: var(--radius-sm); font-size: 13px; font-family: var(--font-ui); background: var(--surface); color: var(--text); }
+  .form-row input:focus, .form-row select:focus, .form-row textarea:focus { outline: none; border-color: var(--accent2); }
+  .form-row textarea { min-height: 80px; resize: vertical; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+  .tab { padding: 8px 14px; font-size: 13px; cursor: pointer; border-bottom: 2px solid transparent; color: var(--text2); margin-bottom: -1px; transition: all 0.15s; }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 500; }
+
+  .ai-section { background: var(--accent-bg); border: 1px solid #e8c9a0; border-radius: var(--radius); padding: 14px 16px; margin-bottom: 14px; }
+  .ai-label { font-size: 12px; font-weight: 600; color: var(--accent); margin-bottom: 8px; }
+  .ai-textarea { width: 100%; padding: 10px; border: 1px solid #e8c9a0; border-radius: var(--radius-sm); font-size: 13px; font-family: var(--font-ui); background: white; color: var(--text); min-height: 140px; resize: vertical; line-height: 1.6; }
+  .ai-loading { color: var(--accent); font-size: 13px; font-style: italic; margin-top: 8px; display: none; }
+
+  .google-panel { background: var(--blue-bg); border: 1px solid #b8d0f0; border-radius: var(--radius); padding: 14px 16px; margin-bottom: 12px; }
+  .google-panel-title { font-size: 12px; font-weight: 600; color: var(--blue); margin-bottom: 10px; }
+  .g-item { padding: 7px 0; border-bottom: 1px solid #cce0f5; font-size: 12px; }
+  .g-item:last-child { border-bottom: none; }
+  .g-title { font-weight: 500; color: var(--text); margin-bottom: 2px; }
+  .g-meta { font-size: 11px; color: var(--text3); }
+
+  .cal-event-card { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--blue); border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 8px; }
+  .gmail-thread { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 8px; }
+  .gmail-thread.unread { border-left: 3px solid var(--accent); }
+  .loading-txt { color: var(--text3); font-size: 12px; font-style: italic; padding: 8px 0; }
+  .empty-state { text-align: center; padding: 30px; color: var(--text3); font-size: 13px; }
+  .search-input { padding: 7px 12px; border: 1px solid var(--border2); border-radius: var(--radius-sm); font-size: 13px; font-family: var(--font-ui); width: 220px; background: var(--surface); color: var(--text); }
+  .filter-select { padding: 6px 10px; border: 1px solid var(--border2); border-radius: var(--radius-sm); font-size: 13px; font-family: var(--font-ui); background: var(--surface); color: var(--text); }
+
+  #view-leads { display: block; }
+  #view-pipeline, #view-gmail, #view-calendar, #view-mail { display: none; }
+</style>
+</head>
+<body>
+
+<!-- SETUP SCREEN -->
+<div class="setup-screen" id="setup-screen">
+  <div class="setup-card">
+    <div class="setup-logo">Historiske Timer</div>
+    <div class="setup-sub">CRM & Salgsværktøj — Jarl Feyling</div>
+
+    <div class="setup-step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <div class="step-title">Opret en Google API-nøgle</div>
+        <div class="step-desc">
+          Gå til <a class="setup-link" href="https://console.cloud.google.com/apis/credentials?project=historiske-timer" target="_blank">Google Cloud Console → Credentials</a>, klik <strong>"+ Create Credentials"</strong> → <strong>"API key"</strong>. Kopiér nøglen og indsæt den herunder.
+        </div>
+        <input class="step-input" id="api-key-input" placeholder="AIza..." type="password">
+      </div>
+    </div>
+
+    <div class="setup-step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <div class="step-title">Log ind med Google</div>
+        <div class="step-desc">Klik på knappen herunder for at give adgang til Gmail og Kalender. Du skal kun gøre dette én gang — din nøgle gemmes lokalt på din computer.</div>
+      </div>
+    </div>
+
+    <button class="setup-btn" onclick="startSetup()">Forbind til Google og åbn CRM</button>
+    <div class="setup-error" id="setup-error">Kunne ikke forbinde — tjek at API-nøglen er korrekt</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app" id="app-screen" style="display:none;">
+  <div class="sidebar">
+    <div class="logo">
+      <div class="logo-title">Historiske Timer</div>
+      <div class="logo-sub">Jarl Feyling — Foredrag</div>
+      <div class="logo-user" id="user-name-display"></div>
+    </div>
+    <nav class="nav">
+      <div class="nav-item active" onclick="showView('leads',this)"><span>📋</span> Alle leads</div>
+      <div class="nav-item" onclick="showView('pipeline',this)"><span>📊</span> Pipeline</div>
+      <div class="nav-item" onclick="showView('gmail',this)"><span>✉️</span> Gmail</div>
+      <div class="nav-item" onclick="showView('calendar',this)"><span>📅</span> Kalender</div>
+      <div class="nav-item" onclick="showView('mail',this)"><span>✦</span> Skriv mail (AI)</div>
+    </nav>
+    <div class="sidebar-stats">
+      <div class="stat-row"><span>Booket i år</span><span class="stat-val" id="stat-booked">0</span></div>
+      <div class="stat-row"><span>Omsætning</span><span class="stat-val" id="stat-revenue">0 kr</span></div>
+      <div class="stat-row"><span>Aktive leads</span><span class="stat-val" id="stat-active">0</span></div>
+    </div>
+    <button class="reset-btn" onclick="resetSetup()">Skift Google-konto</button>
+  </div>
+
+  <div class="main">
+    <!-- LEADS -->
+    <div id="view-leads">
+      <div class="topbar">
+        <h1>Leads & kontakter</h1>
+        <input class="search-input" placeholder="Søg navn, sted..." oninput="filterLeads(this.value)">
+        <select class="filter-select" onchange="filterByStatus(this.value)">
+          <option value="">Alle statusser</option>
+          <option value="new">Ny</option><option value="contacted">Kontaktet</option>
+          <option value="meeting">Møde aftalt</option><option value="booked">Booket ✓</option><option value="lost">Tabt</option>
+        </select>
+        <select class="filter-select" onchange="filterByType(this.value)">
+          <option value="">Alle typer</option>
+          <option value="Plejehjem">Plejehjem</option><option value="Kirke">Kirke</option>
+          <option value="Forening">Forening</option><option value="Andet">Andet</option>
+        </select>
+        <button class="btn btn-primary" onclick="openAddLead()">+ Tilføj lead</button>
+      </div>
+      <div class="content">
+        <div class="summary-grid" id="summary-grid"></div>
+        <div class="card">
+          <div class="table-wrap">
+            <table><thead><tr>
+              <th>Sted / Kontakt</th><th>Type</th><th>By</th><th>Status</th><th>Dato</th><th>Handling</th>
+            </tr></thead><tbody id="leads-tbody"></tbody></table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PIPELINE -->
+    <div id="view-pipeline">
+      <div class="topbar"><h1>Pipeline oversigt</h1></div>
+      <div class="content"><div class="pipeline" id="pipeline-board"></div></div>
+    </div>
+
+    <!-- GMAIL -->
+    <div id="view-gmail">
+      <div class="topbar">
+        <h1>Gmail — Indbakke</h1>
+        <button class="btn btn-google btn-sm" onclick="loadGmail()">↻ Opdater</button>
+      </div>
+      <div class="content">
+        <div id="gmail-loading" class="loading-txt">Henter mails...</div>
+        <div id="gmail-list"></div>
+      </div>
+    </div>
+
+    <!-- CALENDAR -->
+    <div id="view-calendar">
+      <div class="topbar">
+        <h1>Google Kalender</h1>
+        <button class="btn btn-google btn-sm" onclick="loadCalendar()">↻ Opdater</button>
+        <button class="btn btn-primary btn-sm" onclick="toggleNewEvent()">+ Ny aftale</button>
+      </div>
+      <div class="content">
+        <div id="new-event-wrap" style="display:none;">
+          <div class="card" style="margin-bottom:16px;max-width:600px;">
+            <div style="font-size:14px;font-weight:600;margin-bottom:14px;font-family:var(--font)">Opret foredrags-aftale</div>
+            <div class="form-grid">
+              <div class="form-row"><label>Titel</label><input id="ev-title" placeholder="fx Foredrag — Rosenvang Plejehjem"></div>
+              <div class="form-row"><label>Sted/adresse</label><input id="ev-location" placeholder="fx Rosenvangvej 12, Aarhus"></div>
+            </div>
+            <div class="form-grid">
+              <div class="form-row"><label>Startdato & tid</label><input type="datetime-local" id="ev-start"></div>
+              <div class="form-row"><label>Sluttid</label><input type="datetime-local" id="ev-end"></div>
+            </div>
+            <div class="form-row"><label>Beskrivelse</label><textarea id="ev-desc" placeholder="fx Kontakt: Bente Larsen · 3.900 kr."></textarea></div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <button class="btn btn-primary btn-sm" onclick="createCalendarEvent()">Opret i Google Kalender</button>
+              <button class="btn btn-sm" onclick="toggleNewEvent()">Annuller</button>
+              <span id="ev-status" style="font-size:12px;color:var(--green);"></span>
+            </div>
+          </div>
+        </div>
+        <div id="calendar-loading" class="loading-txt">Henter kalenderaftaler...</div>
+        <div id="calendar-list"></div>
+      </div>
+    </div>
+
+    <!-- AI MAIL -->
+    <div id="view-mail">
+      <div class="topbar"><h1>AI-mailassistent</h1></div>
+      <div class="content">
+        <div class="card" style="max-width:700px;">
+          <p style="font-size:13px;color:var(--text2);margin-bottom:16px;">Vælg et lead og lad AI'en skrive en professionel salgsdmail som Jarl Feyling fra Historiske Timer.</p>
+          <div class="form-row"><label>Modtager</label><select id="mail-lead-select"><option value="">— Vælg lead —</option></select></div>
+          <div class="form-row"><label>Mailtype</label>
+            <select id="mail-type">
+              <option value="kold">Kold kald — første henvendelse</option>
+              <option value="followup">Opfølgning — ingen svar</option>
+              <option value="tilbud">Bekræftelse og tilbud</option>
+              <option value="tak">Taksigelse efter foredrag</option>
+            </select>
+          </div>
+          <div class="form-row"><label>Ekstra noter (valgfrit)</label><input id="mail-notes" placeholder="fx 'interesserede i WWII'"></div>
+          <button class="btn btn-primary" onclick="generateMail()" style="margin-bottom:14px;">✦ Generér mail med AI</button>
+          <div class="ai-loading" id="ai-loading">✦ Genererer din mail...</div>
+          <div class="ai-section" id="ai-mail-result" style="display:none;">
+            <div class="ai-label">✦ AI-genereret mail</div>
+            <div style="font-size:12px;color:var(--text2);margin-bottom:6px;" id="mail-subject-label"></div>
+            <textarea class="ai-textarea" id="mail-output" rows="12"></textarea>
+            <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+              <button class="btn btn-sm" onclick="copyMail()">📋 Kopier</button>
+              <button class="btn btn-sm" onclick="openMailClient()">📧 Åbn i Gmail</button>
+              <button class="btn btn-sm" onclick="generateMail()">↻ Generer igen</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- LEAD MODAL -->
+<div class="modal-overlay" id="lead-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-title">Tilføj lead</span>
+      <button class="close-btn" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="tabs">
+        <div class="tab active" onclick="switchTab('info',this)">Info</div>
+        <div class="tab" onclick="switchTab('google',this)">Gmail & Kalender</div>
+        <div class="tab" onclick="switchTab('notes',this)">Noter</div>
+        <div class="tab" onclick="switchTab('aimail',this)">Skriv mail</div>
+      </div>
+
+      <div id="tab-info">
+        <div class="form-grid">
+          <div class="form-row"><label>Stedsnavn *</label><input id="f-name" placeholder="fx Rosenvang Plejehjem"></div>
+          <div class="form-row"><label>Kontaktperson</label><input id="f-contact" placeholder="fx Bente Larsen"></div>
+        </div>
+        <div class="form-grid">
+          <div class="form-row"><label>Type</label><select id="f-type"><option>Plejehjem</option><option>Kirke</option><option>Forening</option><option>Andet</option></select></div>
+          <div class="form-row"><label>Status</label><select id="f-status"><option value="new">Ny</option><option value="contacted">Kontaktet</option><option value="meeting">Møde aftalt</option><option value="booked">Booket ✓</option><option value="lost">Tabt</option></select></div>
+        </div>
+        <div class="form-grid">
+          <div class="form-row"><label>Email</label><input type="email" id="f-email" placeholder="kontakt@sted.dk"></div>
+          <div class="form-row"><label>Telefon</label><input type="tel" id="f-phone" placeholder="12 34 56 78"></div>
+        </div>
+        <div class="form-grid">
+          <div class="form-row"><label>By</label><input id="f-city" placeholder="fx Aarhus"></div>
+          <div class="form-row"><label>Dato for foredrag</label><input type="date" id="f-date"></div>
+        </div>
+      </div>
+
+      <div id="tab-google" style="display:none;">
+        <div class="google-panel">
+          <div class="google-panel-title">✉️ Seneste mails fra denne kontakt</div>
+          <div id="modal-gmail-list"><div style="font-size:12px;color:var(--text3)">Klik knappen for at søge</div></div>
+          <button class="btn btn-google btn-sm" onclick="loadLeadGmail()" style="margin-top:10px;">Søg i Gmail</button>
+        </div>
+        <div class="google-panel">
+          <div class="google-panel-title">📅 Opret aftale direkte i Kalender</div>
+          <div class="form-grid">
+            <div class="form-row"><label>Startdato & tid</label><input type="datetime-local" id="modal-ev-start"></div>
+            <div class="form-row"><label>Sluttid</label><input type="datetime-local" id="modal-ev-end"></div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button class="btn btn-primary btn-sm" onclick="createLeadEvent()">Opret i Kalender</button>
+            <span id="modal-ev-status" style="font-size:12px;color:var(--green)"></span>
+          </div>
+        </div>
+      </div>
+
+      <div id="tab-notes" style="display:none;">
+        <div class="form-row"><label>Tilføj note</label><textarea id="f-note-input" placeholder="fx 'Talte med Bente, positiv stemning...'"></textarea></div>
+        <button class="btn btn-sm" onclick="addNote()" style="margin-bottom:14px;">+ Tilføj note</button>
+        <div id="notes-list"><div class="empty-state">Ingen noter endnu</div></div>
+      </div>
+
+      <div id="tab-aimail" style="display:none;">
+        <div class="ai-section">
+          <div class="ai-label">✦ Generér salgsdmail</div>
+          <div class="form-row" style="margin-bottom:8px;"><label>Mailtype</label>
+            <select id="modal-mail-type"><option value="kold">Kold kald</option><option value="followup">Opfølgning</option><option value="tilbud">Tilbud</option></select>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="generateModalMail()">✦ Generér</button>
+          <div class="ai-loading" id="modal-ai-loading" style="margin-top:8px;">✦ Genererer...</div>
+        </div>
+        <div id="modal-mail-result" style="display:none;">
+          <div class="form-row"><label>Emne</label><input id="modal-mail-subject" style="background:var(--surface2);" readonly></div>
+          <div class="form-row"><label>Mailindhold</label><textarea id="modal-mail-body" rows="10"></textarea></div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-sm" onclick="copyModalMail()">📋 Kopier</button>
+            <button class="btn btn-sm" onclick="openModalMailClient()">📧 Åbn i Gmail</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal()">Annuller</button>
+      <button class="btn btn-primary" onclick="saveLead()">Gem lead</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== GOOGLE AUTH VIA GAPI =====
+let accessToken = null;
+let tokenClient = null;
+const CLIENT_ID = '256481314703-21tf22q8g3qgkm00a5tgcaf3taphrpgo.apps.googleusercontent.com';
+const SCOPES = 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/calendar email profile';
+
+function startSetup() {
+  const apiKey = document.getElementById('api-key-input').value.trim();
+  if (!apiKey) { showError('Indsæt din API-nøgle først'); return; }
+  localStorage.setItem('ht_api_key', apiKey);
+
+  // Load Google Identity Services
+  const script = document.createElement('script');
+  script.src = 'https://accounts.google.com/gsi/client';
+  script.onload = () => initGoogleAuth(apiKey);
+  script.onerror = () => showError('Kunne ikke indlæse Google SDK');
+  document.head.appendChild(script);
+}
+
+function initGoogleAuth(apiKey) {
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID,
+    scope: SCOPES,
+    callback: async (resp) => {
+      if (resp.error) { showError('Login fejlede: ' + resp.error); return; }
+      accessToken = resp.access_token;
+      // Fetch user info
+      try {
+        const r = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: { Authorization: 'Bearer ' + accessToken }
+        });
+        const u = await r.json();
+        document.getElementById('user-name-display').textContent = u.name || u.email;
+      } catch(e) {}
+      document.getElementById('setup-screen').style.display = 'none';
+      document.getElementById('app-screen').style.display = 'flex';
+      init();
+      loadGmail();
+      loadCalendar();
+    }
+  });
+  tokenClient.requestAccessToken({ prompt: '' });
+}
+
+function showError(msg) {
+  const el = document.getElementById('setup-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function resetSetup() {
+  localStorage.removeItem('ht_api_key');
+  accessToken = null;
+  document.getElementById('app-screen').style.display = 'none';
+  document.getElementById('setup-screen').style.display = 'flex';
+}
+
+// Auto-load if key saved
+window.addEventListener('load', () => {
+  const saved = localStorage.getItem('ht_api_key');
+  if (saved) {
+    document.getElementById('api-key-input').value = saved;
+  }
+});
+
+// ===== GOOGLE API CALLS =====
+async function gFetch(url) {
+  const r = await fetch(url, { headers: { Authorization: 'Bearer ' + accessToken } });
+  if (r.status === 401) { showError('Login udløbet — genindlæs siden'); throw new Error('401'); }
+  return r.json();
+}
+
+async function loadGmail() {
+  if (!accessToken) return;
+  document.getElementById('gmail-loading').style.display = 'block';
+  document.getElementById('gmail-list').innerHTML = '';
+  try {
+    const data = await gFetch('https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=20&labelIds=INBOX');
+    if (!data.messages) { document.getElementById('gmail-list').innerHTML = '<div class="empty-state">Ingen mails</div>'; return; }
+    const msgs = await Promise.all(data.messages.slice(0,15).map(m =>
+      gFetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${m.id}?format=metadata&metadataHeaders=Subject,From,Date`)
+    ));
+    document.getElementById('gmail-list').innerHTML = msgs.map(m => {
+      const h = n => (m.payload.headers.find(x=>x.name===n)||{}).value||'';
+      const unread = (m.labelIds||[]).includes('UNREAD');
+      return `<div class="gmail-thread ${unread?'unread':''}">
+        <div style="font-weight:${unread?600:400};font-size:13px;margin-bottom:3px;">${h('Subject')||'(ingen emne)'}</div>
+        <div style="font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${m.snippet||''}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:3px;">Fra: ${h('From')} · ${fmtDate(h('Date'))}</div>
+      </div>`;
+    }).join('');
+  } catch(e) { if(e.message!=='401') document.getElementById('gmail-list').innerHTML='<div class="empty-state">Fejl ved hentning</div>'; }
+  document.getElementById('gmail-loading').style.display = 'none';
+}
+
+async function loadLeadGmail() {
+  if (!accessToken) return;
+  const email = document.getElementById('f-email').value;
+  const name = document.getElementById('f-name').value;
+  const el = document.getElementById('modal-gmail-list');
+  el.innerHTML = '<div class="loading-txt">Søger...</div>';
+  try {
+    const q = email ? `from:${email} OR to:${email}` : name;
+    const data = await gFetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=5&q=${encodeURIComponent(q)}`);
+    if (!data.messages?.length) { el.innerHTML = '<div style="font-size:12px;color:var(--text3)">Ingen mails fundet</div>'; return; }
+    const msgs = await Promise.all(data.messages.slice(0,5).map(m =>
+      gFetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${m.id}?format=metadata&metadataHeaders=Subject,From,Date`)
+    ));
+    el.innerHTML = msgs.map(m => {
+      const h = n => (m.payload.headers.find(x=>x.name===n)||{}).value||'';
+      return `<div class="g-item"><div class="g-title">${h('Subject')||'(ingen emne)'}</div><div class="g-meta">${fmtDate(h('Date'))} · ${h('From')}</div></div>`;
+    }).join('');
+  } catch(e) { el.innerHTML = '<div style="font-size:12px;color:red">Fejl</div>'; }
+}
+
+async function loadCalendar() {
+  if (!accessToken) return;
+  document.getElementById('calendar-loading').style.display = 'block';
+  document.getElementById('calendar-list').innerHTML = '';
+  try {
+    const now = new Date().toISOString();
+    const end = new Date(Date.now() + 90*24*60*60*1000).toISOString();
+    const data = await gFetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${now}&timeMax=${end}&singleEvents=true&orderBy=startTime&maxResults=20`);
+    if (!data.items?.length) { document.getElementById('calendar-list').innerHTML='<div class="empty-state">Ingen kommende aftaler de næste 90 dage</div>'; return; }
+    document.getElementById('calendar-list').innerHTML = data.items.map(ev => {
+      const start = ev.start.dateTime || ev.start.date;
+      return `<div class="cal-event-card">
+        <div style="font-weight:500;font-size:14px;margin-bottom:4px;">${ev.summary||'(ingen titel)'}</div>
+        <div style="font-size:12px;color:var(--text2);">${fmtDateTime(start)}</div>
+        ${ev.location?`<div style="font-size:12px;color:var(--text3);margin-top:2px;">📍 ${ev.location}</div>`:''}
+      </div>`;
+    }).join('');
+  } catch(e) { document.getElementById('calendar-list').innerHTML='<div class="empty-state">Fejl ved hentning af kalender</div>'; }
+  document.getElementById('calendar-loading').style.display = 'none';
+}
+
+async function createCalendarEvent() {
+  const title = document.getElementById('ev-title').value.trim();
+  const start = document.getElementById('ev-start').value;
+  const end = document.getElementById('ev-end').value;
+  if (!title||!start||!end) { alert('Udfyld titel, start og sluttid'); return; }
+  const ev = { summary:title, location:document.getElementById('ev-location').value,
+    description:document.getElementById('ev-desc').value,
+    start:{dateTime:new Date(start).toISOString()}, end:{dateTime:new Date(end).toISOString()} };
+  const r = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+    method:'POST', headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/json'}, body:JSON.stringify(ev)
+  });
+  const d = await r.json();
+  if (d.id) { document.getElementById('ev-status').textContent='✓ Oprettet!'; setTimeout(()=>{toggleNewEvent();loadCalendar();},1500); }
+  else { document.getElementById('ev-status').textContent='Fejl: '+(d.error?.message||''); }
+}
+
+async function createLeadEvent() {
+  const name = document.getElementById('f-name').value||'Foredrag';
+  const start = document.getElementById('modal-ev-start').value;
+  const end = document.getElementById('modal-ev-end').value;
+  if (!start||!end) { alert('Vælg start og sluttid'); return; }
+  const ev = { summary:`Foredrag — ${name}`, location:document.getElementById('f-city').value,
+    description:`Historiske Timer · Jarl Feyling · 3.900 kr.`,
+    start:{dateTime:new Date(start).toISOString()}, end:{dateTime:new Date(end).toISOString()} };
+  const r = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+    method:'POST', headers:{Authorization:'Bearer '+accessToken,'Content-Type':'application/json'}, body:JSON.stringify(ev)
+  });
+  const d = await r.json();
+  document.getElementById('modal-ev-status').textContent = d.id?'✓ Oprettet i Google Kalender!':'Fejl: '+(d.error?.message||'');
+}
+
+function toggleNewEvent() {
+  const w = document.getElementById('new-event-wrap');
+  w.style.display = w.style.display==='none'?'block':'none';
+  document.getElementById('ev-status').textContent='';
+}
+
+function fmtDate(str) {
+  if (!str) return '';
+  try { return new Date(str).toLocaleDateString('da-DK',{day:'numeric',month:'short'}); } catch { return str; }
+}
+function fmtDateTime(str) {
+  if (!str) return '';
+  try {
+    const d = new Date(str);
+    if (str.length===10) return d.toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'});
+    return d.toLocaleDateString('da-DK',{weekday:'short',day:'numeric',month:'short'})+' kl. '+d.toLocaleTimeString('da-DK',{hour:'2-digit',minute:'2-digit'});
+  } catch { return str; }
+}
+
+// ===== LEADS =====
+let leads=[], nextId=1, editingId=null, currentTabNotes=[];
+let currentFilter={search:'',status:'',type:''};
+
+function init() {
+  const saved=localStorage.getItem('ht_leads_v3');
+  if (saved) { try { leads=JSON.parse(saved); nextId=Math.max(...leads.map(l=>l.id),0)+1; } catch {} }
+  renderLeads(); renderPipeline(); updateStats(); populateMailSelect();
+}
+function save() { localStorage.setItem('ht_leads_v3',JSON.stringify(leads)); }
+
+function updateStats() {
+  const booked=leads.filter(l=>l.status==='booked').length;
+  document.getElementById('stat-booked').textContent=booked;
+  document.getElementById('stat-revenue').textContent=(booked*3900).toLocaleString('da-DK')+' kr';
+  document.getElementById('stat-active').textContent=leads.filter(l=>l.status!=='lost'&&l.status!=='booked').length;
+  const b={};
+  leads.forEach(l=>b[l.status]=(b[l.status]||0)+1);
+  document.getElementById('summary-grid').innerHTML=`
+    <div class="summary-card"><div class="summary-label">Nye leads</div><div class="summary-value">${b.new||0}</div><div class="summary-sub">Ikke kontaktet</div></div>
+    <div class="summary-card"><div class="summary-label">Kontaktet</div><div class="summary-value">${(b.contacted||0)+(b.meeting||0)}</div><div class="summary-sub">Under bearbejdning</div></div>
+    <div class="summary-card"><div class="summary-label">Booket</div><div class="summary-value" style="color:var(--green)">${b.booked||0}</div><div class="summary-sub">${((b.booked||0)*3900).toLocaleString('da-DK')} kr</div></div>
+    <div class="summary-card"><div class="summary-label">Konvertering</div><div class="summary-value">${leads.length?Math.round((b.booked||0)/leads.length*100):0}%</div><div class="summary-sub">Af alle leads</div></div>`;
+}
+
+function statusLabel(s){return{new:'Ny',contacted:'Kontaktet',meeting:'Møde aftalt',booked:'Booket ✓',lost:'Tabt'}[s]||s;}
+function typeClass(t){return{Plejehjem:'type-plejehjem',Kirke:'type-kirke',Forening:'type-forening'}[t]||'';}
+
+function getFiltered(){
+  return leads.filter(l=>{
+    const q=currentFilter.search.toLowerCase();
+    return(!q||l.name.toLowerCase().includes(q)||(l.contact||'').toLowerCase().includes(q)||(l.city||'').toLowerCase().includes(q))
+      &&(!currentFilter.status||l.status===currentFilter.status)
+      &&(!currentFilter.type||l.type===currentFilter.type);
+  });
+}
+
+function renderLeads(){
+  const tbody=document.getElementById('leads-tbody');
+  const f=getFiltered();
+  if(!f.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:30px;">Ingen leads — tilføj dit første!</td></tr>';return;}
+  tbody.innerHTML=f.map(l=>`
+    <tr onclick="openEditLead(${l.id})" style="cursor:pointer">
+      <td><div style="font-weight:500">${l.name}</div>${l.contact?`<div style="font-size:11px;color:var(--text3)">${l.contact}</div>`:''}</td>
+      <td><span class="lead-type ${typeClass(l.type)}">${l.type}</span></td>
+      <td style="color:var(--text2)">${l.city||'—'}</td>
+      <td><span class="status-badge s-${l.status}">${statusLabel(l.status)}</span></td>
+      <td style="color:var(--text3)">${l.date||'—'}</td>
+      <td onclick="event.stopPropagation()"><button class="btn btn-sm" onclick="quickMail(${l.id})">✦ Mail</button></td>
+    </tr>`).join('');
+}
+
+function filterLeads(q){currentFilter.search=q;renderLeads();}
+function filterByStatus(v){currentFilter.status=v;renderLeads();}
+function filterByType(v){currentFilter.type=v;renderLeads();}
+
+function renderPipeline(){
+  const cols=[{key:'new',label:'Ny'},{key:'contacted',label:'Kontaktet'},{key:'meeting',label:'Møde aftalt'},{key:'booked',label:'Booket ✓'}];
+  document.getElementById('pipeline-board').innerHTML=cols.map(col=>{
+    const items=leads.filter(l=>l.status===col.key);
+    return`<div><div class="pipeline-header">${col.label}<span class="pipeline-count">${items.length}</span></div>
+      ${items.map(l=>`<div class="lead-card" onclick="openEditLead(${l.id})">
+        <div style="font-size:13px;font-weight:500;margin-bottom:2px">${l.name}</div>
+        <div style="font-size:11px;color:var(--text3)">${l.city||''}${l.contact?' · '+l.contact:''}</div>
+        <span class="lead-type ${typeClass(l.type)}">${l.type}</span></div>`).join('')}
+      ${!items.length?'<div style="font-size:12px;color:var(--text3);padding:8px 0">Tom</div>':''}
+    </div>`;
+  }).join('');
+}
+
+function openAddLead(){
+  editingId=null;document.getElementById('modal-title').textContent='Tilføj lead';
+  clearForm();currentTabNotes=[];showTab('info');
+  document.getElementById('lead-modal').classList.add('open');
+}
+
+function openEditLead(id){
+  const l=leads.find(x=>x.id===id);if(!l)return;
+  editingId=id;document.getElementById('modal-title').textContent=l.name;
+  document.getElementById('f-name').value=l.name;
+  document.getElementById('f-contact').value=l.contact||'';
+  document.getElementById('f-type').value=l.type;
+  document.getElementById('f-status').value=l.status;
+  document.getElementById('f-email').value=l.email||'';
+  document.getElementById('f-phone').value=l.phone||'';
+  document.getElementById('f-city').value=l.city||'';
+  document.getElementById('f-date').value=l.date||'';
+  currentTabNotes=[...(l.notes||[])];renderNotes();showTab('info');
+  document.getElementById('modal-mail-result').style.display='none';
+  document.getElementById('modal-ev-status').textContent='';
+  document.getElementById('modal-gmail-list').innerHTML='<div style="font-size:12px;color:var(--text3)">Klik "Søg i Gmail" for at hente mails</div>';
+  document.getElementById('lead-modal').classList.add('open');
+}
+
+function closeModal(){document.getElementById('lead-modal').classList.remove('open');}
+
+function clearForm(){
+  ['f-name','f-contact','f-email','f-phone','f-city','f-date'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f-type').value='Plejehjem';document.getElementById('f-status').value='new';
+}
+
+function saveLead(){
+  const name=document.getElementById('f-name').value.trim();
+  if(!name){alert('Stedsnavnet er påkrævet');return;}
+  const data={name,contact:document.getElementById('f-contact').value.trim(),type:document.getElementById('f-type').value,
+    status:document.getElementById('f-status').value,email:document.getElementById('f-email').value.trim(),
+    phone:document.getElementById('f-phone').value.trim(),city:document.getElementById('f-city').value.trim(),
+    date:document.getElementById('f-date').value,notes:currentTabNotes};
+  if(editingId){const i=leads.findIndex(l=>l.id===editingId);leads[i]={...leads[i],...data};}
+  else{leads.push({id:nextId++,...data});}
+  save();closeModal();renderLeads();renderPipeline();updateStats();populateMailSelect();
+}
+
+function showTab(name){
+  ['info','google','notes','aimail'].forEach(t=>document.getElementById('tab-'+t).style.display=t===name?'block':'none');
+}
+function switchTab(name,el){
+  showTab(name);
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');
+  if(name==='google'&&editingId)loadLeadGmail();
+}
+function addNote(){
+  const v=document.getElementById('f-note-input').value.trim();if(!v)return;
+  const now=new Date().toLocaleDateString('da-DK',{day:'numeric',month:'long',year:'numeric'});
+  currentTabNotes.unshift(`${v} — ${now}`);document.getElementById('f-note-input').value='';renderNotes();
+}
+function renderNotes(){
+  document.getElementById('notes-list').innerHTML=currentTabNotes.length
+    ?currentTabNotes.map(n=>`<div style="padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">${n}</div>`).join('')
+    :'<div class="empty-state">Ingen noter endnu</div>';
+}
+
+function showView(view,el){
+  ['leads','pipeline','gmail','calendar','mail'].forEach(v=>document.getElementById('view-'+v).style.display=v===view?'block':'none');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));el.classList.add('active');
+  if(view==='gmail')loadGmail();
+  if(view==='calendar')loadCalendar();
+}
+
+function populateMailSelect(){
+  document.getElementById('mail-lead-select').innerHTML='<option value="">— Vælg lead —</option>'+
+    leads.map(l=>`<option value="${l.id}">${l.name}${l.city?' ('+l.city+')':''}</option>`).join('');
+}
+
+// ===== AI MAIL =====
+async function callClaude(lead,mailType,extra){
+  const types={kold:'første kolde henvendelse',followup:'opfølgning — ingen svar',tilbud:'bekræftelse med tilbud',tak:'taksigelse efter foredrag'};
+  const sys=`Du er Jarl Feyling, ejer af Historiske Timer. Du sælger historiske foredrag (2 timer, 3.900 kr.) til plejehjem, kirker og foreninger i Danmark. Emner: 2. Verdenskrig, dansk hverdagshistorie, kongehuset mv. Skriv på dansk. Svar KUN:\nEMNE: [emnet]\n---\n[mailindholdet]`;
+  const msg=`Skriv en ${types[mailType]}.\nSted: ${lead.name}\nType: ${lead.type}\nBy: ${lead.city||'ukendt'}\nKontakt: ${lead.contact||'ukendt'}${extra?'\nInfo: '+extra:''}`;
+  const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:sys,messages:[{role:'user',content:msg}]})});
+  const d=await r.json();
+  const text=d.content.map(b=>b.text||'').join('');
+  const parts=text.split('---');
+  return{subject:(parts[0]||'').replace('EMNE:','').trim(),body:(parts[1]||text).trim()};
+}
+
+async function generateMail(){
+  const id=parseInt(document.getElementById('mail-lead-select').value);
+  if(!id){alert('Vælg et lead først');return;}
+  const lead=leads.find(l=>l.id===id);
+  document.getElementById('ai-loading').style.display='block';
+  document.getElementById('ai-mail-result').style.display='none';
+  try{
+    const r=await callClaude(lead,document.getElementById('mail-type').value,document.getElementById('mail-notes').value);
+    document.getElementById('mail-subject-label').textContent='📧 Emne: '+r.subject;
+    document.getElementById('mail-output').value=r.body;
+    document.getElementById('ai-mail-result').style.display='block';
+    window._ms=r.subject;window._me=lead.email;
+  }catch(e){alert('Fejl: '+e.message);}
+  document.getElementById('ai-loading').style.display='none';
+}
+function copyMail(){navigator.clipboard.writeText('Emne: '+(window._ms||'')+'\n\n'+document.getElementById('mail-output').value).then(()=>alert('Kopieret!'));}
+function openMailClient(){window.open(`mailto:${window._me||''}?subject=${encodeURIComponent(window._ms||'')}&body=${encodeURIComponent(document.getElementById('mail-output').value)}`);}
+
+async function generateModalMail(){
+  if(!editingId)return;
+  const lead=leads.find(l=>l.id===editingId);
+  document.getElementById('modal-ai-loading').style.display='block';
+  document.getElementById('modal-mail-result').style.display='none';
+  try{
+    const r=await callClaude(lead,document.getElementById('modal-mail-type').value,'');
+    document.getElementById('modal-mail-subject').value=r.subject;
+    document.getElementById('modal-mail-body').value=r.body;
+    document.getElementById('modal-mail-result').style.display='block';
+    window._mms=r.subject;window._mme=lead.email;
+  }catch(e){alert('Fejl: '+e.message);}
+  document.getElementById('modal-ai-loading').style.display='none';
+}
+function copyModalMail(){navigator.clipboard.writeText('Emne: '+document.getElementById('modal-mail-subject').value+'\n\n'+document.getElementById('modal-mail-body').value).then(()=>alert('Kopieret!'));}
+function openModalMailClient(){window.open(`mailto:${window._mme||''}?subject=${encodeURIComponent(document.getElementById('modal-mail-subject').value)}&body=${encodeURIComponent(document.getElementById('modal-mail-body').value)}`);}
+
+function quickMail(id){
+  showView('mail',document.querySelectorAll('.nav-item')[4]);
+  document.getElementById('mail-lead-select').value=id;
+}
+</script>
+</body>
+</html>
